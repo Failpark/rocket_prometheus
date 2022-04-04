@@ -110,7 +110,7 @@ use prometheus::{opts, Encoder, HistogramVec, IntCounterVec, Registry, TextEncod
 use rocket::{
     fairing::{Fairing, Info, Kind},
     http::{ContentType, Method},
-    response::content::Custom,
+    Responder,
     route::{Handler, Outcome},
     Data, Request, Response, Route,
 };
@@ -361,6 +361,17 @@ impl Fairing for PrometheusMetrics {
     }
 }
 
+#[derive(Responder)]
+struct Custom {
+    inner: String,
+    header: ContentType,
+}
+impl Custom {
+    fn new(header: ContentType, inner: String) -> Self {
+        Self { header, inner }
+    }
+}
+
 #[rocket::async_trait]
 impl Handler for PrometheusMetrics {
     async fn handle<'r>(&self, req: &'r Request<'_>, _: Data<'r>) -> Outcome<'r> {
@@ -376,14 +387,7 @@ impl Handler for PrometheusMetrics {
         let body = String::from_utf8(buffer).unwrap();
         Outcome::from(
             req,
-            Custom(
-                ContentType::with_params(
-                    "text",
-                    "plain",
-                    [("version", "0.0.4"), ("charset", "utf-8")],
-                ),
-                body,
-            ),
+            Custom::new(ContentType::new("text", "plain").with_params([("version", "0.0.4"), ("charset", "utf-8")]), body)
         )
     }
 }
